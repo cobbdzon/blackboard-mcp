@@ -38,6 +38,53 @@ Or run it without installing, which is what the generated client config uses:
 npx -y blackboard-mcp
 ```
 
+### From a local checkout (Arch Linux)
+
+Arch installs npm's global packages under `/usr`, which is owned by root. Do not use `sudo npm link`; link into a user prefix instead. If Node.js is missing, install it with `sudo pacman -S nodejs npm`.
+
+```bash
+cd /path/to/blackboard-mcp
+npm install --no-package-lock
+npm run build
+
+npm_config_prefix="$HOME/.local" npm link
+```
+
+That creates:
+
+- `~/.local/bin/blackboard-mcp`, pointing at the checkout's `dist/cli.js`
+- `~/.local/lib/node_modules/blackboard-mcp`, pointing at the checkout
+
+Make sure `~/.local/bin` is on your `PATH`:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Add that line to your shell profile if it is not already there, then verify:
+
+```bash
+blackboard-mcp --version
+```
+
+Because the package is linked rather than copied, `npm run build` in the checkout updates the installed command immediately. To remove it:
+
+```bash
+npm_config_prefix="$HOME/.local" npm unlink -g blackboard-mcp
+```
+
+When configuring an MCP client, use `blackboard-mcp` as the command and include `~/.local/bin` in the client's `PATH`. For OpenCode, replace `you` with your username (`~` is not expanded inside JSON strings):
+
+```jsonc
+"blackboard": {
+  "type": "local",
+  "command": ["blackboard-mcp"],
+  "environment": {
+    "PATH": "/home/you/.local/bin:/usr/local/bin:/usr/bin:/bin"
+  }
+}
+```
+
 ## Signing in
 
 ```bash

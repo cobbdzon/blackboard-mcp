@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { randomBytes } from 'node:crypto';
 import { readFileSync, writeFileSync, existsSync, chmodSync } from 'node:fs';
@@ -10,6 +10,43 @@ const run = promisify(execFile);
 
 const SERVICE = 'blackboard-mcp';
 const ACCOUNT = 'session-encryption-key';
+const KEYRING_TIMEOUT_MS = 5000;
+
+/**
+ * Runs `file` with `args`, writes `input` to stdin, then closes it.
+ *
+ * `execFile` has no `input` option (only `execFileSync` and `spawnSync` do).
+ * Passing one is silently ignored, leaving the child with an open stdin pipe
+ * that never reaches EOF. `secret-tool store` reads the secret from stdin until
+ * EOF, so it would block until the timeout. This closes stdin explicitly.
+ *
+ * Exported for the regression test; it is not part of the package's public API.
+ */
+export function runWithInput(
+  file: string,
+  args: readonly string[],
+  input: string,
+  timeoutMs = KEYRING_TIMEOUT_MS,
+): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(file, args, {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: timeoutMs,
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout?.on('data', (chunk: Buffer) => { stdout += chunk; });
+    child.stderr?.on('data', (chunk: Buffer) => { stderr += chunk; });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code === 0) resolve({ stdout, stderr });
+      else reject(new Error(`${file} exited with code ${code}: ${stderr.trim()}`));
+    });
+    // The child may exit before reading stdin; ignore the resulting EPIPE.
+    child.stdin?.on('error', () => {});
+    child.stdin?.end(input);
+  });
+}
 
 /**
  * Resolves the 32-byte key used to encrypt the session at rest.
@@ -45,7 +82,7 @@ async function readFromOsKeychain(): Promise<Buffer | null> {
     if (platform() === 'linux') {
       const { stdout } = await run('secret-tool', [
         'lookup', 'service', SERVICE, 'account', ACCOUNT,
-      ], { timeout: 5000 });
+      ], { timeout: KEYRING_TIMEOUT_MS });
       const hex = stdout.trim();
       if (hex.length === 64) return Buffer.from(hex, 'hex');
       return null;
@@ -67,10 +104,10 @@ async function writeToOsKeychain(key: Buffer): Promise<boolean> {
       return true;
     }
     if (platform() === 'linux') {
-      await run('secret-tool', [
+      await runWithInput('secret-tool', [
         'store', '--label=Blackboard MCP session key',
         'service', SERVICE, 'account', ACCOUNT,
-      ], { input: hex, timeout: 5000 } as never);
+      ], hex);
       log.debug('Stored session key in Secret Service');
       return true;
     }

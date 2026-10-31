@@ -16,7 +16,10 @@ export const ConfigSchema = z.object({
   downloadDir: z.string().optional(),
   /** Whether tools that mutate remote state are permitted at all. */
   allowWrites: z.boolean().default(false),
-  /** Extra hostnames the HTTP client may follow redirects to (CDN/file hosts). */
+  /**
+   * Extra hostnames the HTTP client may follow redirects to (CDN/file hosts).
+   * An entry beginning with a dot also matches its subdomains.
+   */
   extraHosts: z.array(z.string()).default([]),
 });
 

@@ -461,6 +461,8 @@ Grades, feedback and submissions are confidential personal data, and fall under 
 | `BLACKBOARD_MCP_LOG_LEVEL` | `silent`, `error`, `warn`, `info` or `debug` |
 | `BLACKBOARD_MCP_HOME` | State directory, default `~/.blackboard-mcp` |
 
+`extraHosts` is read from `~/.blackboard-mcp/config.json`. Entries can be exact hostnames or suffixes beginning with a dot, for example `.blackboardcdn.com`.
+
 ## Use as a library
 
 The package is a usable Blackboard SDK on its own:

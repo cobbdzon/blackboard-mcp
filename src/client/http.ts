@@ -138,7 +138,11 @@ export class HttpClient {
     if (host.endsWith('.blackboard.com')) return true;
     if (host.endsWith('.bbcdn.io')) return true;
     if (host.endsWith('.cloudfront.net')) return true;
-    return this.config.extraHosts.includes(host);
+    // Xythos file CDN, e.g. learn-<region>-prod-fleetNN-xythos.content.blackboardcdn.com.
+    if (host.endsWith('.blackboardcdn.com')) return true;
+    return this.config.extraHosts.some(
+      (h) => host === h || host.endsWith(h.startsWith('.') ? h : `.${h}`),
+    );
   }
 
   resolve(path: string, query?: RequestOptions['query']): URL {

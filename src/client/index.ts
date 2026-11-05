@@ -1016,6 +1016,20 @@ export class BlackboardClient {
     return rows.map((a) => ({ ...a, courseId, _courseName: name }));
   }
 
+  /** Marks one announcement as read, the same PUT Ultra sends when it opens. Requires writes enabled. */
+  async setAnnouncementRead(
+    courseId: string,
+    announcementId: string,
+    isRead = true,
+  ): Promise<BbAnnouncement> {
+    return this.http.json<BbAnnouncement>({
+      method: 'PUT',
+      path: expand('announcementStatus', { courseId, announcementId }),
+      body: { isRead },
+      headers: { 'Content-Type': 'application/json;charset=UTF-8' },
+    });
+  }
+
   // ── calendar & deadlines ────────────────────────────────────────────────
 
   async listCalendarItems(opts: { since: string; until: string; courseId?: string } & ListOptions): Promise<BbCalendarItem[]> {

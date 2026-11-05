@@ -146,6 +146,12 @@ export const DEFAULT_ENDPOINTS = {
   // ── announcements ───────────────────────────────────────────────────────
   courseAnnouncements: '/learn/api/v1/courses/{courseId}/announcements',
   announcementCounts: '/learn/api/v1/courses/{courseId}/announcements/counts',
+  /**
+   * Per-user read state for one announcement. PUT `{isRead: true}` is the
+   * request Ultra sends when the announcement is opened.
+   */
+  announcementStatus:
+    '/learn/api/v1/courses/{courseId}/announcements/{announcementId}/status',
 
   // ── calendar & deadlines ────────────────────────────────────────────────
   calendars: '/learn/api/v1/calendars',

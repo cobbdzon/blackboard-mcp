@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { getClient, guard, text, table, when, clip, section, relativeDue } from './helpers.js';
 import { courseLabel, type BbAnnouncement, type Paged } from '../client/index.js';
+import { BlackboardError } from '../lib/errors.js';
 import { htmlToText } from '../lib/extract.js';
 
 export function registerCommsTools(server: McpServer): void {
@@ -35,12 +36,13 @@ export function registerCommsTools(server: McpServer): void {
               : (a.body?.rawText ?? '');
             const meta = [
               a._courseName ? `**${a._courseName}**` : '',
+              a.courseId ? `course: \`${a.courseId}\`` : '',
               when(a.createdDate ?? a.startDateRestriction ?? undefined),
               a.readStatus?.isRead === false ? '*unread*' : '',
             ]
               .filter(Boolean)
               .join(' · ');
-            return `### ${a.title ?? '(untitled)'}\n${meta}\n\n${full ? body : clip(body, 400)}`;
+            return `### ${a.title ?? '(untitled)'}\nid: \`${a.id}\`${meta ? ` · ${meta}` : ''}\n\n${full ? body : clip(body, 400)}`;
           })
           .join('\n\n---\n\n');
 
@@ -84,7 +86,11 @@ export function registerCommsTools(server: McpServer): void {
         }
         for (const a of res.body.results ?? []) {
           if (args.unreadOnly && a.readStatus?.isRead !== false) continue;
-          all.push({ ...a, _courseName: label });
+          all.push({
+            ...a,
+            courseId: a.courseId ?? m.course?.id ?? m.courseId,
+            _courseName: label,
+          });
         }
       });
 
@@ -103,6 +109,49 @@ export function registerCommsTools(server: McpServer): void {
           all.length ? render(all, args.fullText === true) : '_None._',
           failures.length ? `\n_Could not read: ${failures.join('; ')}_` : '',
         ].join('\n'),
+      );
+    }),
+  );
+
+  server.registerTool(
+    'bb_mark_announcement_read',
+    {
+      title: 'Mark an announcement as read',
+      description:
+        'Marks one announcement as read (the same read-status update Ultra sends when an announcement is opened). Requires writes to be enabled with BLACKBOARD_MCP_ALLOW_WRITES=1; this server is read-only by default.',
+      inputSchema: {
+        courseId: z.string().describe('Course id, e.g. "_12345_1".'),
+        announcementId: z
+          .string()
+          .describe('Announcement id from bb_announcements, e.g. "_900338_1".'),
+        read: z
+          .boolean()
+          .optional()
+          .describe('Default true; pass false to mark it unread where the tenant allows that.'),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    guard('bb_mark_announcement_read', async ({ courseId, announcementId, read }) => {
+      const client = await getClient();
+      if (!client.config.allowWrites) {
+        throw new BlackboardError('FORBIDDEN', 'Writes are disabled on this server.', {
+          hint: 'Set BLACKBOARD_MCP_ALLOW_WRITES=1 in the MCP server environment to permit this.',
+        });
+      }
+
+      const isRead = read ?? true;
+      const result = await client.setAnnouncementRead(courseId, announcementId, isRead);
+      const title = result.title ? `"${result.title}"` : `\`${announcementId}\``;
+      const updated = result.readStatus?.updateDate
+        ? ` (${when(result.readStatus.updateDate)})`
+        : '';
+      return text(
+        `Marked ${title} (\`${announcementId}\`) as ${isRead ? 'read' : 'unread'}${updated}.`,
       );
     }),
   );

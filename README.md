@@ -378,6 +378,7 @@ Every course tool takes a `courseId`, an internal id like `_12345_1` rather than
 | Tool | Purpose |
 |---|---|
 | `bb_announcements` | Announcements with full text, one course or all |
+| `bb_mark_announcement_read` | Mark one announcement as read (write, off by default) |
 | `bb_activity_stream` | Recent changes across every course |
 | `bb_list_conversations` | Course message threads |
 | `bb_list_discussions` | Discussion forums, posts and replies |
@@ -403,6 +404,7 @@ Off unless `BLACKBOARD_MCP_ALLOW_WRITES=1` is set.
 | `bb_save_draft` | Save text as a draft, not visible to the instructor, reversible |
 | `bb_submit_assignment` | Submit text for grading. Irreversible, requires `confirm: true` |
 | `bb_submit_quiz_attempt` | Submit an in-progress quiz. Irreversible, requires `confirm: true` |
+| `bb_mark_announcement_read` | Mark one announcement as read, or unread with `read: false` |
 
 Both submit tools have three gates: writes must be enabled, `confirm` must be `true`, and an existing or already-submitted attempt is refused. Each returns Blackboard's receipt id, which is your proof of submission, and flags a late submission.
 
